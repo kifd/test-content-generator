@@ -8,16 +8,16 @@ class TCG_Images extends AbstractTCG {
     
     protected function set_defaults() {
         $this->defaults = [
-            'number_of_images' => 5,
-            'image_width'      => 800,
-            'image_height'     => 400,
+            'amount'       => 5,
+            'image_width'  => 800,
+            'image_height' => 400,
         ];
     }
     
     protected function init_settings() {
-        register_setting($this->ident, $this->ident, array($this, 'validate'));
+        register_setting($this->ident, $this->ident, array($this, 'run'));
         add_settings_section($this->ident.'_1', __('Download Images', 'TestContentGenerator'), array($this, 'intro'), $this->ident);
-        add_settings_field('tcg_number_of_images', __('Number of Images', 'TestContentGenerator'), array($this, 'number_of_images'), $this->ident, $this->ident.'_1');
+        add_settings_field('tcg_amount', __('Number of Images', 'TestContentGenerator'), array($this, 'amount'), $this->ident, $this->ident.'_1');
         add_settings_field('tcg_image_dimensions', __('Image Dimensions', 'TestContentGenerator'), array($this, 'image_dimensions'), $this->ident, $this->ident.'_1');
     }   
 
@@ -27,11 +27,11 @@ class TCG_Images extends AbstractTCG {
         echo '<p class="description">'.__('Download example images from https://picsum.photos and save them to your Media Library.', 'TestContentGenerator').'</p>';
     }
     
-    public function number_of_images() {
+    public function amount() {
         printf(
             '<select name="%s">%s</select>',
-                $this->ident.'[number_of_images]',
-                $this->make_options([1, 5, 10, 20], $this->options['number_of_images'])
+                $this->ident.'[amount]',
+                $this->make_options([1, 5, 10, 20], $this->options['amount'])
         );
     }
     
@@ -44,60 +44,64 @@ class TCG_Images extends AbstractTCG {
     
     
     
-    protected function sanitise(array $input): array {
+    protected function sanitise(array $input) {
         
         // add between 1-20 images at a time
-        $number_of_images = (isset($input['number_of_images'])) ? max(1, min(20, (int) $input['number_of_images'])) : 1;
+        $amount = (isset($input['amount'])) ? max(1, min(20, (int) $input['amount'])) : 1;
         
         // image dimensions 100-3000
         $image_width = (isset($input['image_width'])) ? max(100, min(3000, (int) $input['image_width'])) : 300;
         $image_height = (isset($input['image_height'])) ? max(100, min(3000, (int) $input['image_height'])) : 200;
         
         // stick all our sanitised vars into an array
-        $options = [
-            'number_of_images' => $number_of_images,
-            'image_width'      => $image_width,
-            'image_height'     => $image_height,
+        $this->options = [
+            'amount'       => $amount,
+            'image_width'  => $image_width,
+            'image_height' => $image_height,
         ];
         
-        return $options;
     }
 
     
     
-    protected function create(array $options) {
+    protected function create(array $options, object|null $progress = null) {
+        
+        // get all possible authors (ie anyone who can upload files)
+        $this->users = get_users(array('capability' => 'upload_files', 'fields' => 'ID'));
+        
         
         $count = 0;
-        for ($i=0; $i<$options['number_of_images']; $i++) {
+        for ($i=0; $i<$options['amount']; $i++) {
+            if (is_object($progress)) $progress->tick(); // tick at the start of this create() because there's too long a pause otherwise
             if (! $this->save_image_from_picsum(width: $options['image_width'], height: $options['image_height'])) {
                 break;
             }
             $count++;
-            sleep(1);
+            if ($count < $options['amount']) sleep(1); // don't download too much too quickly
         }
+        if (is_object($progress)) $progress->finish();
         
-        if ($count < $options['number_of_images']) {
-            $count = $options['number_of_images'] - $count;
-            add_settings_error('TCG_Plugin', 'tcg_error',
-                sprintf(
-                    _n(
-                        'Failed to save %d image to the Media Library.',
-                        'Failed to save %d images to the Media Library.',
-                        sizeof($count), 'TestContentGenerator'
-                    ),
-                    number_format_i18n($count)
-                ), 'error');   
+        
+        if ($count < $options['amount']) {
+            $count = $options['amount'] - $count;
+            $this->error(sprintf(
+                _n(
+                    'Failed to save %d image to the Media Library.',
+                    'Failed to save %d images to the Media Library.',
+                    $count, 'TestContentGenerator'
+                ),
+                number_format_i18n($count)
+            ));
             
         } else {
-            add_settings_error('TCG_Plugin', 'tcg_okay',
-                sprintf(
-                    _n(
-                        'Saved %d image to the Media Library.',
-                        'Saved %d images to the Media Library.',
-                        $count, 'TestContentGenerator'
-                    ),
-                    number_format_i18n($count)
-                ), 'updated');
+            $this->success(sprintf(
+                _n(
+                    'Saved %d image to the Media Library.',
+                    'Saved %d images to the Media Library.',
+                    $count, 'TestContentGenerator'
+                ),
+                number_format_i18n($count)
+            ));
         }
     }
     
@@ -111,7 +115,7 @@ class TCG_Images extends AbstractTCG {
         // request the image from the remote server
         $response = wp_remote_get($url);
         if (is_wp_error($response)) {
-            add_settings_error('TCG_Plugin', 'tcg_error', $response->error, 'error');
+            $this->warning($response);
             return false;
         }
         
@@ -119,7 +123,7 @@ class TCG_Images extends AbstractTCG {
         $mime_type = wp_remote_retrieve_header($response, 'content-type');
         $extension = array_search($mime_type, wp_get_mime_types());
         if (! $extension) {
-            add_settings_error('TCG_Plugin', 'tcg_error', sprintf(__('Unrecognised mime type "%s" returned by %s', 'TestContentGenerator'), $mime_type, $url), 'error');
+            $this->warning(sprintf(__('Unrecognised mime type "%s" returned by %s', 'TestContentGenerator'), $mime_type, $url));
             return false;
         }
         $extension = explode("|", $extension)[0];
@@ -131,7 +135,7 @@ class TCG_Images extends AbstractTCG {
         // and save it to our WP site
         $uploaded = wp_upload_bits($filename, null, wp_remote_retrieve_body($response));
         if (is_wp_error($uploaded)) {
-            add_settings_error('TCG_Plugin_Setup', 'tcg_error', $uploaded->error, 'error');
+            $this->warning($uploaded);
             return false;
         }
         
@@ -143,6 +147,7 @@ class TCG_Images extends AbstractTCG {
             'post_title'     => $filename,
             'post_content'   => __('Test Image Content', 'TestContentGenerator'),
             'post_status'    => 'inherit',
+            'post_author'    => $this->users[array_rand($this->users)],
         );
         $attachment_id = wp_insert_attachment($attachment);
 

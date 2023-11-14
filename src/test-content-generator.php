@@ -1,8 +1,8 @@
 <?php
 /*
 Plugin Name: Test Content Generator
-Version: 0.2
-Description: Intended for plugin and theme developers, this lets you quickly generate a test site full of random users, posts, comments, tags and images. Go to Tools-><strong>Content Generator</strong> to use.
+Version: 0.4
+Description: Intended for plugin and theme developers, this lets you quickly generate a test site full of random users, posts, comments, tags and images. Go to Tools-><strong>Content Generator</strong> to use, or call from the command line with WP_CLI.
 Author: Keith Drakard
 Author URI: https://drakard.com/
 */
@@ -16,11 +16,15 @@ class TestContentGenerator {
     private $default_tab = 'posts';
     
     public function __construct() {
-        load_plugin_textdomain('TestContentGenerator', false, dirname(plugin_basename(__FILE__)).'/languages');
+        load_plugin_textdomain('TestContentGenerator', false, __DIR__.'/languages');
         
         add_action('init', array($this, 'init'));
         add_action('admin_init', array($this, 'admin_init'));
         add_action('admin_menu', array($this, 'add_admin_page'));
+        
+        if (defined('WP_CLI') and WP_CLI) {
+            require_once __DIR__.'/library/wp-cli-commands.php';
+        }
     }
     
     
@@ -69,9 +73,12 @@ class TestContentGenerator {
     /**** admin for the plugin *************************/
     
     public function admin_init() {
+        // I'm not using ajax in this plugin, so don't keep reloading and reinitialising the classes just because the tab's been left open
+        if (defined('DOING_AJAX') and DOING_AJAX) return;
+        
         // load each of our separate (mostly so this file isn't 1000+ lines long) tab classes, each of which registers their own settings
         foreach (array_keys($this->tabs) as $tab) {
-            require_once 'library/tab_'.$tab.'.php';
+            require_once __DIR__.'/library/tab_'.$tab.'.php';
             $class = 'TCG_'.ucfirst($tab);
             $instance = new $class();
         }

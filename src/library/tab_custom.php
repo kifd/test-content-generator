@@ -9,16 +9,16 @@ class TCG_Custom extends AbstractTCG {
     protected function set_defaults() {
         $this->defaults = [
             'enable_cpt'      => false,
-            'enable_cat'      => false,
+            'enable_category' => false,
             'enable_tag'      => false,
         ];
     }
     
     protected function init_settings() {
-        register_setting($this->ident, $this->ident, array($this, 'validate'));
+        register_setting($this->ident, $this->ident, array($this, 'run'));
         add_settings_section($this->ident.'_1', __('Custom Settings', 'TestContentGenerator'), array($this, 'intro'), $this->ident);
         add_settings_field('tcg_enable_cpt', __('Custom Post Type', 'TestContentGenerator'), array($this, 'enable_cpt'), $this->ident, $this->ident.'_1');
-        add_settings_field('tcg_enable_cat', __('Custom Category', 'TestContentGenerator'), array($this, 'enable_cat'), $this->ident, $this->ident.'_1');
+        add_settings_field('tcg_enable_category', __('Custom Category', 'TestContentGenerator'), array($this, 'enable_category'), $this->ident, $this->ident.'_1');
         add_settings_field('tcg_enable_tag', __('Custom Tags', 'TestContentGenerator'), array($this, 'enable_tag'), $this->ident, $this->ident.'_1');
     }
     
@@ -42,12 +42,12 @@ class TCG_Custom extends AbstractTCG {
         );
     }
     
-    public function enable_cat() {
+    public function enable_category() {
         $associated = get_taxonomy('tcg_custom_category');
         printf(
             '<label for="%s"><input type="checkbox" value="1" name="%s" id="%s"%s>%s</label><p class="description">%s</p>',
-                $this->ident.'[enable_cat]', $this->ident.'[enable_cat]', $this->ident.'[enable_cat]',
-                (($this->options['enable_cat']) ? ' checked="checked"' : ''),
+                $this->ident.'[enable_category]', $this->ident.'[enable_category]', $this->ident.'[enable_category]',
+                (($this->options['enable_category']) ? ' checked="checked"' : ''),
                 __('Enabled', 'TestContentGenerator'),
                 (is_object($associated)) ? sprintf(
                     __('Associated with %s post types.', 'TestContentGenerator'),
@@ -72,31 +72,30 @@ class TCG_Custom extends AbstractTCG {
     
     
     
-    protected function sanitise(array|null $input = []): array {
+    protected function sanitise(array|null $input = []) {
         $enable_cpt = (isset($input['enable_cpt'])) ? (bool) $input['enable_cpt'] : $this->defaults['enable_cpt'];
-        $enable_cat = (isset($input['enable_cat'])) ? (bool) $input['enable_cat'] : $this->defaults['enable_cat'];
+        $enable_category = (isset($input['enable_category'])) ? (bool) $input['enable_category'] : $this->defaults['enable_category'];
         $enable_tag = (isset($input['enable_tag'])) ? (bool) $input['enable_tag'] : $this->defaults['enable_tag'];
         
         // stick all our sanitised vars into an array
-        $options = [
+        $this->options = [
             'enable_cpt'      => $enable_cpt,
-            'enable_cat'      => $enable_cat,
+            'enable_category' => $enable_category,
             'enable_tag'      => $enable_tag,
         ];
         
-        return $options;
     }
     
     
     
-    protected function create(array $options) {
+    protected function create(array $options, object|null $progress = null) {
         $regen = false;
         
         if ($options['enable_cpt']) {
             self::register_cpt();
             $regen = true;
         }
-        if ($options['enable_cat']) {
+        if ($options['enable_category']) {
             self::register_cat();
             $regen = true;
         }
@@ -108,7 +107,9 @@ class TCG_Custom extends AbstractTCG {
         // if we add the cpt/tax we regenerate the permalinks now
         if ($regen) {
             flush_rewrite_rules();
-        }
+        }   
+        
+        $this->success(__('Saved custom post type and taxonomy settings.', 'TestContentGenerator'));
     }
     
     

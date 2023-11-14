@@ -8,19 +8,19 @@ class TCG_Users extends AbstractTCG {
     
     protected function set_defaults() {
         $this->defaults = [
-            'number_of_users'   => 1,
-            'registration_from' => 60,
-            'available_roles'   => array('editor', 'author', 'contributor', 'subscriber'),
-            'random_locale'     => false,
+            'amount'        => 1,
+            'days_from'     => 60,
+            'role_keys'     => array('editor', 'author', 'contributor', 'subscriber'),
+            'random_locale' => false,
         ];
     }
     
     protected function init_settings() {
-        register_setting($this->ident, $this->ident, array($this, 'validate'));
+        register_setting($this->ident, $this->ident, array($this, 'run'));
         add_settings_section($this->ident.'_1', __('Generate Users', 'TestContentGenerator'), array($this, 'intro'), $this->ident);
-        add_settings_field('tcg_number_of_users', __('Number of Users', 'TestContentGenerator'), array($this, 'number_of_users'), $this->ident, $this->ident.'_1');
+        add_settings_field('tcg_amount', __('Number of Users', 'TestContentGenerator'), array($this, 'amount'), $this->ident, $this->ident.'_1');
         add_settings_field('tcg_date_range', __('Date Range', 'TestContentGenerator'), array($this, 'date_range'), $this->ident, $this->ident.'_1');
-        add_settings_field('tcg_available_roles', __('Available Roles', 'TestContentGenerator'), array($this, 'available_roles'), $this->ident, $this->ident.'_1');
+        add_settings_field('tcg_role_keys', __('Available Roles', 'TestContentGenerator'), array($this, 'role_keys'), $this->ident, $this->ident.'_1');
         add_settings_field('tcg_random_locale', __('Random Locale', 'TestContentGenerator'), array($this, 'random_locale'), $this->ident, $this->ident.'_1');
     }
 
@@ -30,28 +30,28 @@ class TCG_Users extends AbstractTCG {
         echo '<p class="">'.__('Add a number of example users to WordPress, registering on a random date as one of the available roles and locales.', 'TestContentGenerator').'</p>';
     }
     
-    public function number_of_users() {
+    public function amount() {
         printf(
             '<select name="%s">%s</select>',
-                $this->ident.'[number_of_users]',
-                $this->make_options([1, 5, 10, 20], $this->options['number_of_users'])
+                $this->ident.'[amount]',
+                $this->make_options([1, 5, 10, 20], $this->options['amount'])
         );
     }
     
     public function date_range() {
         printf(
             __('From %s days ago to now.', 'TestContentGenerator'),
-                sprintf('<input type="text" class="small-text" name="%s" value="%d">', $this->ident.'[registration_from]', $this->options['registration_from'])
+                sprintf('<input type="text" class="small-text" name="%s" value="%d">', $this->ident.'[days_from]', $this->options['days_from'])
         );
     }
     
-    public function available_roles() {
+    public function role_keys() {
         printf(
             '<select name="%s" multiple="multiple" style="%s" size="%d">%s</select>',
-                $this->ident.'[available_roles][]',
+                $this->ident.'[role_keys][]',
                 'min-width:10rem',
                 min(max(1, sizeof($this->all_roles)), 8), // resize the select to fit the content (up to a point)
-                $this->make_options($this->all_roles, $this->options['available_roles'], false, 'name')
+                $this->make_options($this->all_roles, $this->options['role_keys'], false, 'name')
         );
     }
     
@@ -67,50 +67,52 @@ class TCG_Users extends AbstractTCG {
     
     
     
-    protected function sanitise(array $input): array {
+    protected function sanitise(array $input) {
         
         // add between 1-20 users at a time
-        $number_of_users = (isset($input['number_of_users'])) ? max(1, min(20, (int) $input['number_of_users'])) : $this->defaults['number_of_users'];
+        $amount = (isset($input['amount'])) ? max(1, min(20, (int) $input['amount'])) : $this->defaults['amount'];
         
         // allow test users to be registered up to 10 years in the past, more than enough to test your site
-        $registration_from = (isset($input['registration_from'])) ? max(0, min(3650, (int) $input['registration_from'])) : $this->defaults['registration_from'];
+        $days_from = (isset($input['days_from'])) ? max(0, min(3650, (int) $input['days_from'])) : $this->defaults['days_from'];
         
         // a slightly cumbersome validation check of roles...
         $this->all_roles = get_editable_roles();
-        $available_roles = (isset($input['available_roles']) and sizeof(array_intersect($input['available_roles'], array_keys($this->all_roles))) == sizeof($input['available_roles'])) ? $input['available_roles'] : $this->defaults['available_roles'];
-        
+        // extra check needed because wp cli can't pass arrays - https://github.com/wp-cli/wp-cli/issues/4616
+        if (isset($input['role_keys']) and gettype($input['role_keys']) == 'string') {
+            $input['role_keys'] = json_decode($input['role_keys'], true);
+        }
+        $role_keys = (isset($input['role_keys']) and sizeof(array_intersect($input['role_keys'], array_keys($this->all_roles))) == sizeof($input['role_keys'])) ? $input['role_keys'] : $this->defaults['role_keys'];
+               
         // not that it should make a difference for single language sites
         $random_locale = (isset($input['random_locale'])) ? (bool) $input['random_locale'] : $this->defaults['random_locale'];
         
         // stick all our sanitised vars into an array
-        $options = [
-            'number_of_users'   => $number_of_users,
-            'registration_from' => $registration_from,
-            'available_roles'   => $available_roles,
-            'random_locale'     => $random_locale,
+        $this->options = [
+            'amount'        => $amount,
+            'days_from'     => $days_from,
+            'role_keys'     => $role_keys,
+            'random_locale' => $random_locale,
         ];
         
-        return $options;
     }
     
     
     
-    protected function create(array $options) {
+    protected function create(array $options, object|null $progress = null) {
         
         require_once 'lipsum.php';
         
-        //$roles = array_filter(array_keys(get_editable_roles()), function($k) { return ($k != 'administrator'); });
-        $roles = $options['available_roles'];
+        $roles = $options['role_keys'];
         
         $locales = get_available_languages();
         
         $count = 0;
-        for ($i = 0; $i < $options['number_of_users']; $i++) {
+        for ($i = 0; $i < $options['amount']; $i++) {
             
             $first_name = Lipsum::word(capitalise: true, min_length: 4, max_length: 8);
             $last_name = Lipsum::word(capitalise: true, min_length: 7);
 
-            $registration_date = rand(strtotime(sprintf('-%s days', $options['registration_from'])), time());
+            $registration_date = rand(strtotime(sprintf('-%s days', $options['days_from'])), time());
             
             $userdata = array(
                 'user_pass'            => '',
@@ -134,19 +136,21 @@ class TCG_Users extends AbstractTCG {
             wp_insert_user($userdata);
             
             $count++;
+            
+            if (is_object($progress)) $progress->tick();
         }
+        if (is_object($progress)) $progress->finish();
         
         
         if ($count > 0) {
-            add_settings_error('TCG_Plugin', 'tcg_okay',
-                sprintf(
-                    _n(
-                        '%d test user has been successfully added.',
-                        '%d test users have been successfully added.',
-                        $count, 'TestContentGenerator'
-                    ),
-                    number_format_i18n($count)
-                ), 'updated');
+            $this->success(sprintf(
+                _n(
+                    '%d test user has been successfully added.',
+                    '%d test users have been successfully added.',
+                    $count, 'TestContentGenerator'
+                ),
+                number_format_i18n($count)
+            ));
         }
     }
     

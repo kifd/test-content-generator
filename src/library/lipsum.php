@@ -23,11 +23,11 @@ class Lipsum {
         return implode(" ", $words);
     }
     
-    public static function paragraphs(int $min = 1, int $max = 20, bool $wrap = false, bool $bold = false): string {
+    public static function paragraphs(int $min = 1, int $max = 20, bool $wrap = false, bool $bold = false, bool $italic = false): string {
         $paragraphs = [];
         $amount = rand($min, $max);
         while (sizeof($paragraphs) < $amount) {
-            $paragraphs[]= Lipsum::paragraph(min_sentences: 2, max_sentences: 6, wrap: $wrap, bold: $bold);
+            $paragraphs[]= Lipsum::paragraph(min_sentences: 2, max_sentences: 6, wrap: $wrap, bold: $bold, italic: $italic);
         }
         return implode("\n\n", $paragraphs);
     }
@@ -44,7 +44,7 @@ class Lipsum {
     }
     
     
-    public static function ulol_list(int $min_items = 1, int $max_items = 20, string $type = 'ul'): string {
+    public static function ulol_list(int $min_items = 2, int $max_items = 20, string $type = 'ul'): string {
         $items = [];
         $amount = rand($min_items, $max_items);
         while (sizeof($items) < $amount) {
@@ -60,23 +60,24 @@ class Lipsum {
     
     
     
-    public static function paragraph(int $min_sentences = 1, int $max_sentences = 5, bool $wrap = false, bool $bold = false): string {
+    public static function paragraph(int $min_sentences = 1, int $max_sentences = 5, bool $wrap = false, bool $bold = false, bool $italic = false): string {
         $sentences = [];
         $amount = rand($min_sentences, $max_sentences);
         while (sizeof($sentences) < $amount) {
-            array_push($sentences, Lipsum::sentence(min_words: 4, bold: $bold));
+            array_push($sentences, Lipsum::sentence(min_words: 4, bold: $bold, italic: $italic));
         }
         $paragraph = implode(' ', $sentences);
         return ($wrap) ? '<p>'.$paragraph.'</p>' : $paragraph;
     }
     
-    public static function sentence(int $min_words = 1, int $max_words = 16, bool $capslock = false, bool $punctuation = true, bool $bold = false): string {
+    public static function sentence(int $min_words = 1, int $max_words = 16, bool $capslock = false, bool $punctuation = true, bool $bold = false, bool $italic = false): string {
         $capitalise = true;
         $words = [];
         $amount = rand($min_words, $max_words);
         while (sizeof($words) < $amount) {
             $add_bold = ($bold and rand(1,100) > 95) ? true : false;
-            $word = Lipsum::word(capitalise: $capitalise, bold: $add_bold);
+            $add_italic = ($italic and rand(1,100) > 95) ? true : false;
+            $word = Lipsum::word(capitalise: $capitalise, bold: $add_bold, italic: $add_italic);
             if ($capitalise) {
                 $capitalise = $capslock; // capslock = ucfirst each word (ie a name)
             } else if ($punctuation) {
@@ -93,7 +94,7 @@ class Lipsum {
         return $sentence;
     }
     
-    public static function word(int $min_length = 1, int $max_length = -1, bool $capitalise = false, bool $bold = false): string {
+    public static function word(int $min_length = 1, int $max_length = -1, bool $capitalise = false, bool $bold = false, bool $italic = false): string {
         // TODO: if you're supporting 8.3+ when https://wiki.php.net/rfc/arbitrary_static_variable_initializers comes in
         if (empty(self::$words)) self::$words = self::load(self::$filename);
         do {
@@ -102,6 +103,7 @@ class Lipsum {
         $word = ($capitalise) ? ucfirst($word) : $word;
         
         if ($bold) $word = '<b>'.$word.'</b>';
+        if ($italic) $word = '<i>'.$word.'</i>';
         
         return $word;
     }
