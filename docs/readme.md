@@ -5,7 +5,7 @@ Author Link:       https://drakard.com/
 Requires at least: 4.0 or higher  
 Tested up to:      6.4  
 Requires PHP:      8.0  
-Stable tag:        0.4  
+Stable tag:        0.4.1  
 License:           BSD-3-Clause  
 License URI:       https://directory.fsf.org/wiki/License:BSD-3-Clause  
 Tags:              lorem ipsum, test content, cli, test posts, test images, test users, test comments
@@ -68,6 +68,9 @@ See `wp help test` for more details.
 
 
 ## Changelog
+
+### 0.4.1
+* Changed how some string arrays are passed via CLI to be consistent
 
 ### 0.4
 * Added WP-CLI integration

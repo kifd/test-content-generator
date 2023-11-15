@@ -7,6 +7,7 @@ require_once 'abstract_tab.php';
 class TCG_Users extends AbstractTCG {
     
     protected function set_defaults() {
+        $this->_all_user_roles = get_editable_roles();
         $this->defaults = [
             'amount'        => 1,
             'days_from'     => 60,
@@ -50,8 +51,8 @@ class TCG_Users extends AbstractTCG {
             '<select name="%s" multiple="multiple" style="%s" size="%d">%s</select>',
                 $this->ident.'[role_keys][]',
                 'min-width:10rem',
-                min(max(1, sizeof($this->all_roles)), 8), // resize the select to fit the content (up to a point)
-                $this->make_options($this->all_roles, $this->options['role_keys'], false, 'name')
+                min(max(1, sizeof($this->_all_user_roles)), 8), // resize the select to fit the content (up to a point)
+                $this->make_options($this->_all_user_roles, $this->options['role_keys'], false, 'name')
         );
     }
     
@@ -75,14 +76,9 @@ class TCG_Users extends AbstractTCG {
         // allow test users to be registered up to 10 years in the past, more than enough to test your site
         $days_from = (isset($input['days_from'])) ? max(0, min(3650, (int) $input['days_from'])) : $this->defaults['days_from'];
         
-        // a slightly cumbersome validation check of roles...
-        $this->all_roles = get_editable_roles();
-        // extra check needed because wp cli can't pass arrays - https://github.com/wp-cli/wp-cli/issues/4616
-        if (isset($input['role_keys']) and gettype($input['role_keys']) == 'string') {
-            $input['role_keys'] = json_decode($input['role_keys'], true);
-        }
-        $role_keys = (isset($input['role_keys']) and sizeof(array_intersect($input['role_keys'], array_keys($this->all_roles))) == sizeof($input['role_keys'])) ? $input['role_keys'] : $this->defaults['role_keys'];
-               
+        // which roles can we create users as?
+        $role_keys = $this->read_array($input, 'role_keys', array_keys($this->_all_user_roles));
+        
         // not that it should make a difference for single language sites
         $random_locale = (isset($input['random_locale'])) ? (bool) $input['random_locale'] : $this->defaults['random_locale'];
         

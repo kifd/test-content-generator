@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Test Content Generator
-Version: 0.4
+Version: 0.4.1
 Description: Intended for plugin and theme developers, this lets you quickly generate a test site full of random users, posts, comments, tags and images. Go to Tools-><strong>Content Generator</strong> to use, or call from the command line with WP_CLI.
 Author: Keith Drakard
 Author URI: https://drakard.com/

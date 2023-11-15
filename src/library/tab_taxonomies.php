@@ -8,10 +8,10 @@ class TCG_Taxonomies extends AbstractTCG {
     
     
     protected function set_defaults() {
-        $this->active_taxonomies = get_taxonomies(array('public' => true, 'show_ui' => true), 'objects');
+        $this->_active_taxonomies = get_taxonomies(array('public' => true, 'show_ui' => true), 'objects');
         $this->defaults = [
             'amount'   => 1,
-            'tax_keys' => array_column($this->active_taxonomies, 'name'),
+            'tax_keys' => array_column($this->_active_taxonomies, 'name'),
         ];
     }
     
@@ -40,14 +40,14 @@ class TCG_Taxonomies extends AbstractTCG {
     
     public function tax_keys() {
         $options = '';
-        foreach ($this->active_taxonomies as $key => $v) {
+        foreach ($this->_active_taxonomies as $key => $v) {
             $options.= sprintf('<option value="%s"%s>%s</option>', $key, ((in_array($key, $this->options['tax_keys'])) ? ' selected="selected"' : ''), $v->labels->singular_name);
         }
         printf(
             '<select name="%s" multiple="multiple" style="%s" size="%d">%s</select>',
                 $this->ident.'[tax_keys][]',
                 'min-width:10rem',
-                min(max(1, sizeof($this->active_taxonomies)), 8), // resize the select to fit the content (up to a point)
+                min(max(1, sizeof($this->_active_taxonomies)), 8), // resize the select to fit the content (up to a point)
                 $options
         );
     }
@@ -60,10 +60,8 @@ class TCG_Taxonomies extends AbstractTCG {
         // create between 1-100 terms
         $amount = (isset($input['amount'])) ? max(1, min(100, (int) $input['amount'])) : $this->defaults['amount'];
         
-        // a slightly cumbersome validation check ...
-        // extra check needed because wp cli can't pass arrays - https://github.com/wp-cli/wp-cli/issues/4616
-        if (isset($input['tax_keys']) and gettype($input['tax_keys']) == 'string') $input['tax_keys'] = json_decode($input['tax_keys'], true);
-        $tax_keys = (isset($input['tax_keys']) and sizeof(array_intersect($input['tax_keys'], array_keys($this->active_taxonomies))) == sizeof($input['tax_keys'])) ? $input['tax_keys'] : $this->defaults['tax_keys'];
+        // what taxonomies can we add terms to?
+        $tax_keys = $this->read_array($input, 'tax_keys', array_keys($this->_active_taxonomies));
         
         
         // stick all our sanitised vars into an array
@@ -85,7 +83,7 @@ class TCG_Taxonomies extends AbstractTCG {
         for ($i = 0; $i < $options['amount']; $i++) {
         
             $key = $options['tax_keys'][array_rand($options['tax_keys'])];
-            $tax = $this->active_taxonomies[$key];
+            $tax = $this->_active_taxonomies[$key];
             
             $description = sprintf(__('%s Term %d', 'TestContentGenerator'), $tax->labels->singular_name, $i+1);
             $parent_id = 0;

@@ -92,6 +92,26 @@ abstract class AbstractTCG {
     }
     
     
+    protected function read_array(array $input, string $key, array $valid_keys): array {
+        $array = $this->defaults[$key]; // should check if set and is array here
+        
+        if (isset($input[$key])) {
+            // extra check needed because wp cli can't pass arrays - https://github.com/wp-cli/wp-cli/issues/4616
+            if (gettype($input[$key]) == 'string') {
+                $input[$key] = explode(',', $input[$key]); // json_decode($input[$key], true); // if you need to get fancier than commas
+            }
+            if (gettype($input[$key]) == 'array') {
+                if (empty(array_filter($input[$key]))) {
+                    $array = [];
+                } else {
+                    $array = array_filter($input[$key], function($k) use ($valid_keys) { return (in_array($k, $valid_keys)); });
+                }
+            }
+        }
+        return $array;
+    }
+    
+    
     
     protected function make_options(array $options, string|array $current, bool $simple = true, string|null $option_key = null): string {
         $output = '';

@@ -3,17 +3,21 @@
 * Generate a test site full of random users, posts, comments, tags and images.
 * 
 * ## EXAMPLES
-*
+* 
 *   # Add 5 users who will be either an editor or an author.
-*   $ wp test users --amount=5 --role_keys='["editor", "author"]'
+*   $ wp test users --amount=5 --role_keys=editor,author
 *   Success: 5 test users have been successfully added.
 * 
 *   # Add 5 images 800x400 in dimension to the Media Library.
 *   $ wp test images --amount=5 --image_width=800 --image_height=400
 *   Success: Saved 5 images to the Media Library.
+*
+*   # Add 5 posts potentially containing unordered lists and blockquotes, in addition to paragraphs of lipsum.
+*   $ wp test posts --amount=5 --extra_html=ul,blockquote
+*   Success: 5 test posts have been successfully generated.
 * 
 *   # Add 5 comments made within the last 45 days on "Posts" or "TCG Custom Post Types".
-*   $ wp test comments --amount=5 --days_from=45 --post_type_keys='["post", "tcg_custom_post_type"]'
+*   $ wp test comments --amount=5 --days_from=45 --post_type_keys=post,tcg_custom_post_type
 *   Success: 5 test comments have been successfully generated.
 * 
 * 
@@ -36,7 +40,7 @@ class TCG_CLI extends WP_CLI_Command {
     * : The number of Lorem Ipsum posts to create.
     * 
     * [--post_type_keys=<array>]
-    * : Post type keys to pick from. Pass as a JSON encoded quoted string.
+    * : Post types to pick from. Pass as a comma separated list of post type keys.
     * 
     * [--days_from=<integer>]
     * : Days in the past to pick the published date from.
@@ -48,7 +52,22 @@ class TCG_CLI extends WP_CLI_Command {
     * : Associate an existing image from the Media Library as a post's Featured Image. Use --no-featured_image to disable.
     * 
     * [--extra_html=<array>]
-    * : Add a mix of lipsum HTML, such as blockquotes and lists, in addition to the usual paragraphs.
+    * : Add a mix of lipsum HTML, such as blockquotes and lists, in addition to the usual paragraphs. Pass as a comma separated list.
+    * ---
+    * options:
+    *   - b
+    *   - i
+    *   - ul
+    *   - ol
+    *   - blockquote
+    *   - h1
+    *   - h2
+    *   - h3
+    *   - h4
+    *   - h5
+    *   - h6
+    * ---
+    * 
     * 
     * [--save]
     * : Save the current arguments (and unpassed options) for future runs.
@@ -58,12 +77,14 @@ class TCG_CLI extends WP_CLI_Command {
     *
     *   # Add 3 posts of mixed HTML (<p>, <ul> and <blockquote>).
     *   $ wp test posts --amount=2 --extra_html=ul,blockquote
+    *   Success: 3 test posts have been successfully generated.
     * 
-    *   # Add 2 posts of just plain paragraphs.
-    *   $ wp test posts --amount=2 --extra_html=
+    *   # Add 1 post of just plain paragraphs and save those two settings for next time.
+    *   $ wp test posts --amount=1 --extra_html= --save
+    *   Success: 1 test post has been successfully generated.
     * 
     *   # Add 5 posts published within the last 60 days in either "Posts" or "TCG Custom Post Types".
-    *   $ wp test posts --amount=5 --days_from=60 --post_type_keys='["post", "tcg_custom_post_type"]'
+    *   $ wp test posts --amount=5 --days_from=60 --post_type_keys=post,tcg_custom_post_type
     *   Success: 5 test posts have been successfully generated.
     * 
     */
@@ -85,7 +106,7 @@ class TCG_CLI extends WP_CLI_Command {
     * : The number of users to create.
     * 
     * [--role_keys=<array>]
-    * : User role keys to pick from. Pass as a JSON encoded quoted string.
+    * : User roles to pick from. Pass as a comma separated list of role keys.
     * 
     * [--days_from=<integer>]
     * : Days in the past to pick from.
@@ -103,8 +124,8 @@ class TCG_CLI extends WP_CLI_Command {
     *   $ wp test users --amount=1 --days_from=30
     *   Success: 1 test user has been successfully added.
     * 
-    *   # Add 5 users who will be either an editor or an author.
-    *   $ wp test users --amount=5 --role_keys='["editor", "author"]'
+    *   # Add 5 users who will be either an editor or an author, and save those two settings for next time.
+    *   $ wp test users --amount=5 --role_keys=editor,author --save
     *   Success: 5 test users have been successfully added.
     * 
     */
@@ -126,7 +147,7 @@ class TCG_CLI extends WP_CLI_Command {
     * : The number of comments to create.
     * 
     * [--post_type_keys=<array>]
-    * : Only add comments to posts with one of these keys. Pass as a JSON encoded quoted string.
+    * : Only add comments to posts with one of these keys. Pass as a comma separated list of post type keys.
     * 
     * [--days_from=<integer>]
     * : Days in the past to pick from when making the comment. Doesn't check the date of the post.
@@ -138,7 +159,7 @@ class TCG_CLI extends WP_CLI_Command {
     * ## EXAMPLES
     *
     *   # Add 5 comments made within the last 45 days on "Posts" or "TCG Custom Post Types".
-    *   $ wp test comments --amount=5 --days_from=45 --post_type_keys='["post", "tcg_custom_post_type"]'
+    *   $ wp test comments --amount=5 --days_from=45 --post_type_keys=post,tcg_custom_post_type
     *   Success: 5 test comments have been successfully generated.
     * 
     */
@@ -195,7 +216,7 @@ class TCG_CLI extends WP_CLI_Command {
     * : The number of terms to create.
     * 
     * [--tax_keys=<array>]
-    * : Only add terms to taxonomies with one of these keys. Pass as a JSON encoded quoted string.
+    * : Only add terms to taxonomies with one of these keys. Pass as a comma separated list of active taxonomy keys.
     * 
     * [--save]
     * : Save the current arguments (and unpassed options) for future runs.
@@ -204,7 +225,7 @@ class TCG_CLI extends WP_CLI_Command {
     * ## EXAMPLES
     *
     *   # Add 20 terms, mixed between the "Category" and "Post Tag" taxonomies.
-    *   $ wp test taxonomies --amount=20 --tax_keys='["category", "post_tag"]'
+    *   $ wp test taxonomies --amount=20 --tax_keys=category,post_tag
     *   Success: 20 example terms have been successfully added.
     * 
     */
@@ -220,28 +241,29 @@ class TCG_CLI extends WP_CLI_Command {
     * Enable an example custom post type and taxonomies.
     * 
     * All options are optional - unpassed options will use the previously set value, or the default if invalid or never set.
+    * 
+    * Unlike the other "creation" commands, this command automatically saves the toggled value(s).
     *
     * ## OPTIONS
     * 
     * [--[no-]enable_cpt]
     * : Enable the "tcg_custom_post_type" custom Post Type. Use --no-enable_cpt to disable.
-    * Will use "post_tag", "category", "tcg_custom_category" and "tcg_custom_tag" taxonomies.
+    * It will use "post_tag", "category", "tcg_custom_category" and "tcg_custom_tag" taxonomies.
     * 
     * [--[no-]enable_category]
     * : Enable the "tcg_custom_category" custom hierarchical taxonomy. Use --no-enable_category to disable.
-    * Will be used by "post" and "tcg_custom_post_type" post types.
+    * It will be used by "post" and "tcg_custom_post_type" post types.
     * 
     * [--[no-]enable_tag]
     * : Enable the "tcg_custom_tag" custom tag taxonomy. Use --no-enable_tag to disable.
-    * Will be used by "post" and "tcg_custom_post_type" post types.
-    * 
+    * It will be used by "post" and "tcg_custom_post_type" post types.
     * 
     * 
     * ## EXAMPLES
     *
-    *   # 
-    *   $ wp test custom
-    
+    *   # Enable the custom post type, disable the custom tag taxonomy, leave the custom category taxonomy unchanged.
+    *   $ wp test custom --enable_cpt --no-enable_tag
+    *   Success: Saved custom post type and taxonomy settings.
     * 
     */
     public function custom(array $args, array $named) {
@@ -260,7 +282,15 @@ class TCG_CLI extends WP_CLI_Command {
     * 
     * <command>
     * : String name of the command to show.
-    * 
+    * ---
+    * options:
+    *   - comments
+    *   - custom
+    *   - images
+    *   - posts
+    *   - taxonomies
+    *   - users
+    * ---
     * 
     * ## EXAMPLES
     *
@@ -304,5 +334,3 @@ class TCG_CLI extends WP_CLI_Command {
 
 
 WP_CLI::add_command('test', 'TCG_CLI');
-
-

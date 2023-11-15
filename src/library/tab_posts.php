@@ -7,8 +7,17 @@ require_once 'abstract_tab.php';
 class TCG_Posts extends AbstractTCG {
     
     protected function set_defaults() {
+        // get public post types, filter out attachments and then map down to type => display_name pairs
+        $this->_post_type_keys = array_filter(
+            get_post_types(array('public' => true), 'objects'),
+            function($pt) { return (! in_array($pt->name, ['attachment'])); }
+        );
+        array_walk($this->_post_type_keys, function(&$item, $key) { $item = $item->labels->singular_name; });
+        
+        // the whole list of HTML tags that have some supporting function to make them
         $tags = array('b','i','ul','ol','blockquote','h1','h2','h3','h4','h5','h6');
         $this->_supported_tags = array_combine($tags, $tags);
+        
         $this->defaults = [
             'amount'         => 1,
             'post_type_keys' => array('post'),
@@ -89,23 +98,11 @@ class TCG_Posts extends AbstractTCG {
         
     protected function sanitise(array $input) {
         
-        
-        // get public post types, filter out attachments and then map down to type => display_name pairs
-        $this->_post_type_keys = array_filter(
-            get_post_types(array('public' => true), 'objects'),
-            function($pt) { return (! in_array($pt->name, ['attachment'])); }
-        );
-        array_walk($this->_post_type_keys, function(&$item, $key) { $item = $item->labels->singular_name; });
-        
         // create between 1-100 posts
         $amount = (isset($input['amount'])) ? max(1, min(100, (int) $input['amount'])) : $this->defaults['amount'];
         
-        // a slightly cumbersome validation check of post types...
-        // extra check needed because wp cli can't pass arrays - https://github.com/wp-cli/wp-cli/issues/4616
-        if (isset($input['post_type_keys']) and gettype($input['post_type_keys']) == 'string') {
-            $input['post_type_keys'] = json_decode($input['post_type_keys'], true);
-        }
-        $post_type_keys = (isset($input['post_type_keys']) and sizeof(array_intersect($input['post_type_keys'], array_keys($this->_post_type_keys))) == sizeof($input['post_type_keys'])) ? $input['post_type_keys'] : $this->defaults['post_type_keys'];
+        // what post types are we making?
+        $post_type_keys = $this->read_array($input, 'post_type_keys', array_keys($this->_post_type_keys));
         
         // date range can stretch from 10 years in the past to 10 years in the future, more than enough to test your site
         $days_from = (isset($input['days_from'])) ? max(0, min(3650, (int) $input['days_from'])) : $this->defaults['days_from'];
@@ -115,18 +112,8 @@ class TCG_Posts extends AbstractTCG {
         $featured_image = (bool) (isset($input['featured_image']) and $input['featured_image']);
         
         // are we making some mix of HTML instead of simple Lorem?
-        // extra check needed because wp cli can't pass arrays - https://github.com/wp-cli/wp-cli/issues/4616
-        if (isset($input['extra_html']) and gettype($input['extra_html']) == 'string') {
-            $input['extra_html'] = explode(',', $input['extra_html']); // json_decode($input['extra_html'], true);
-        }
-        $extra_html = $this->defaults['extra_html'];
-        if (isset($input['extra_html'])) {
-            if (empty(array_filter($input['extra_html']))) {
-                $extra_html = [];
-            } else {
-                $extra_html = array_filter($input['extra_html'], function($value) { return (in_array($value, $this->_supported_tags)); });
-            }
-        }
+        $extra_html = $this->read_array($input, 'extra_html', $this->_supported_tags);
+        
         
         // stick all our sanitised vars into an array
         $this->options = [

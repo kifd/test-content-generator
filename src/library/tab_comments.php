@@ -7,6 +7,13 @@ require_once 'abstract_tab.php';
 class TCG_Comments extends AbstractTCG {
     
     protected function set_defaults() {
+        // get public post types, filter out attachments *and pages* and then map down to type => display_name pairs
+        $this->_post_type_keys = array_filter(
+            get_post_types(array('public' => true), 'objects'),
+            function($pt) { return (! in_array($pt->name, ['attachment', 'page'])); }
+        );
+        array_walk($this->_post_type_keys, function(&$item, $key) { $item = $item->labels->singular_name; });
+        
         $this->defaults = [
             'amount'         => 1,
             'post_type_keys' => array('post'),
@@ -57,26 +64,15 @@ class TCG_Comments extends AbstractTCG {
     
     protected function sanitise(array $input) {
         
-        // get public post types, filter out attachments *and pages* and then map down to type => display_name pairs
-        $this->_post_type_keys = array_filter(
-            get_post_types(array('public' => true), 'objects'),
-            function($pt) { return (! in_array($pt->name, ['attachment', 'page'])); }
-        );
-        array_walk($this->_post_type_keys, function(&$item, $key) { $item = $item->labels->singular_name; });
-        
-        
         // create between 1-100 posts
         $amount = (isset($input['amount'])) ? max(1, min(100, (int) $input['amount'])) : $this->defaults['amount'];
         
         // post types to comment on
-        // extra check needed because wp cli can't pass arrays - https://github.com/wp-cli/wp-cli/issues/4616
-        if (isset($input['post_type_keys']) and gettype($input['post_type_keys']) == 'string') {
-            $input['post_type_keys'] = json_decode($input['post_type_keys'], true);
-        }
-        $post_type_keys = (isset($input['post_type_keys']) and sizeof(array_intersect($input['post_type_keys'], array_keys($this->_post_type_keys))) == sizeof($input['post_type_keys'])) ? $input['post_type_keys'] : $this->defaults['post_type_keys'];
+        $post_type_keys = $this->read_array($input, 'post_type_keys', array_keys($this->_post_type_keys));
         
         // date range can stretch from 10 years in the past to 10 years in the future, more than enough to test your site
         $days_from = (isset($input['days_from'])) ? max(0, min(3650, (int) $input['days_from'])) : $this->defaults['days_from'];
+        
         
         // stick all our sanitised vars into an array
         $this->options = [
@@ -143,7 +139,7 @@ class TCG_Comments extends AbstractTCG {
             // DEBUG: use this instead of directly calling wp_insert_comment if you need a wp_error returned instead of just false
             // $response = wp_new_comment($comment_data, true);
             // if (is_wp_error($response)) {
-            //     add_settings_error('TCG_Plugin', 'tcg_error', $response->error, 'error');
+            //     add_settings_error('TCG_Plugin', 'tcg_error', $response->errors, 'error');
             if (! wp_insert_comment($comment_data)) {
                 $this->error(__('Failed to insert comment. If this happens, uncomment the DEBUG lines to find out why.', 'TestContentGenerator'));
                 return false;
