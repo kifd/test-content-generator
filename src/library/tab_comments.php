@@ -129,7 +129,7 @@ class TCG_Comments extends AbstractTCG {
                 'comment_author_email' => $user->user_email,
                 'comment_author_url' => '',
                 'comment_content' => Lipsum::paragraphs(min: 1, max: 2),
-                'comment_date' => date('Y-m-d H:i:s', $date),
+                'comment_date' => gmdate('Y-m-d H:i:s', $date),
                 'comment_post_ID' => $post_id,
                 'comment_approved' => true,
                 'comment_parent' => $parent_id,

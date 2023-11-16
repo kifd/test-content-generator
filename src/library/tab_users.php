@@ -123,7 +123,7 @@ class TCG_Users extends AbstractTCG {
                 'syntax_highlighting'  => 'false', // NOTE: these are string literals
                 'comment_shortcuts'    => 'false',
                 'use_ssl'              => true,    // NOTE: but this one is a real bool
-                'user_registered'      => date('Y-m-d H:i:s', $registration_date),
+                'user_registered'      => gmdate('Y-m-d H:i:s', $registration_date),
                 'role'                 => $roles[array_rand($roles)],
                 'locale'               => ($options['random_locale']) ? $locales[array_rand($locales)] : '',
                 // 'meta_input'

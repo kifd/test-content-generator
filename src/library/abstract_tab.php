@@ -81,12 +81,12 @@ abstract class AbstractTCG {
         if ($this->cli) WP_CLI::success($message);
     }
     protected function warning(WP_Error|string $message) {
-        if (is_a($message, 'WP_Error')) $message = json_encode($message, JSON_PRETTY_PRINT);
+        if (is_a($message, 'WP_Error')) $message = wp_json_encode($message, JSON_PRETTY_PRINT);
         add_settings_error('TCG_Plugin', 'tcg_error', $message, 'error');
         if ($this->cli) WP_CLI::warning($message);
     }
     protected function error(WP_Error|string $message) {
-        if (is_a($message, 'WP_Error')) $message = json_encode($message, JSON_PRETTY_PRINT);
+        if (is_a($message, 'WP_Error')) $message = wp_json_encode($message, JSON_PRETTY_PRINT);
         add_settings_error('TCG_Plugin', 'tcg_error', $message, 'error');
         if ($this->cli) WP_CLI::error($message);
     }

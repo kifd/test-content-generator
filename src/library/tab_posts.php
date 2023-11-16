@@ -173,7 +173,7 @@ class TCG_Posts extends AbstractTCG {
                 'post_title' => Lipsum::title(min: $options['title_min_words'], max: $options['title_max_words']),
                 'post_content' => $this->make_post_content($options),
                 'post_status' => 'publish',
-                'post_date' => date('Y-m-d H:i:s', $date),
+                'post_date' => gmdate('Y-m-d H:i:s', $date),
                 'post_author' => $users[array_rand($users)],
                 'post_type' => $post_type,
             );
